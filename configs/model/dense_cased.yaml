@@ -1,0 +1,11 @@
+_target_: src.models.DenseCaSED
+
+defaults:
+  - vocabulary: retrieval
+
+model_name: "ViT-L-14"
+alpha: 0.7
+crop_grid_sizes: [2, 4, 8]
+crop_stride_grid: true
+crop_output_size: 128
+pixel_map_size: 16

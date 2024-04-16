@@ -5,7 +5,7 @@ from omegaconf import DictConfig
 
 from src.utils import logging_utils
 
-log = logging_utils.get_logger(__name__)
+log = logging_utils.get_logger(__name__, rank_zero_only=True)
 
 
 def instantiate_callbacks(callbacks_cfg: DictConfig) -> list[Callback]:

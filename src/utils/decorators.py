@@ -1,17 +1,18 @@
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial, wraps
-from typing import Any, Callable, Optional
+from typing import Any
 
 from omegaconf import DictConfig
 
 from src.utils import logging_utils
 from src.utils.lightning_utils import close_loggers
 
-log = logging_utils.get_logger(__name__)
+log = logging_utils.get_logger(__name__, rank_zero_only=True)
 
 
 def map_reduce(
-    func: Optional[Callable] = None, num_workers: int = 2, reduce: str = "none", **kwargs
+    func: Callable | None = None, num_workers: int = 4, reduce: str = "none", **kwargs
 ) -> Any:
     """Map reduce decorator.
 
@@ -58,9 +59,11 @@ def map_reduce(
                     for arg in inner_args
                 ]
                 sub_kwargs = {
-                    key: value[start:end]
-                    if isinstance(value, list) and len(value) == size
-                    else value
+                    key: (
+                        value[start:end]
+                        if isinstance(value, list) and len(value) == size
+                        else value
+                    )
                     for key, value in inner_kwargs.items()
                 }
 
@@ -91,7 +94,7 @@ def map_reduce(
         results = [result for result in results if result is not None and result != []]
 
         # reduce the results
-        if reduce == "sum":
+        if reduce == "batch":
             if isinstance(results[0], (list, tuple)):
                 if isinstance(results[0][0], (list, tuple)):
                     num_elem = len(results[0])
@@ -102,6 +105,10 @@ def map_reduce(
             return sum(results)
         elif reduce == "mean":
             return sum(results) / len(results)
+        elif reduce == "sum":
+            if isinstance(results[0], list):
+                return sum(results, [])
+            return sum(results)
 
         return results
 

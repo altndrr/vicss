@@ -1,7 +1,10 @@
 _target_: src.models.CaSED
 
 defaults:
+  - detector: grid
+  - extractor: patch
   - vocabulary: retrieval
 
 model_name: "ViT-L-14"
 alpha: 0.7
+vocab_prompts_from_dataset: False

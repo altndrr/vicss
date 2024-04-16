@@ -1,5 +1,3 @@
-from typing import Union
-
 import torch
 from torchmetrics import Metric
 
@@ -24,7 +22,7 @@ class SentenceIOU(Metric):
         self.add_state("intersection", default=torch.tensor([]), dist_reduce_fx="sum")
         self.add_state("union", default=torch.tensor([]), dist_reduce_fx="sum")
 
-    def update(self, values: list[dict], targets: Union[list[str], list[list[str]]]) -> None:
+    def update(self, values: list[dict], targets: list[str] | list[list[str]]) -> None:
         """Update state with data.
 
         Args:
@@ -100,7 +98,7 @@ class SentenceScore(Metric):
 
         return embeddings
 
-    def update(self, values: list[dict], targets: Union[list[str], list[list[str]]]) -> None:
+    def update(self, values: list[dict], targets: list[str] | list[list[str]]) -> None:
         """Update state with data.
 
         Args:

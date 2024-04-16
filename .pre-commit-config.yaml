@@ -18,14 +18,14 @@ repos:
 
   # python code formatting
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 24.1.1
     hooks:
       - id: black
         args: [--line-length, "99"]
 
   # python import sorting
   - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
         args: ["--profile", "black", "--filter-files"]
@@ -35,14 +35,21 @@ repos:
     rev: v3.3.1
     hooks:
       - id: pyupgrade
-        args: [--py38-plus]
+        args: [--py310-plus]
 
   # python docstring formatting
   - repo: https://github.com/myint/docformatter
-    rev: v1.5.1
+    rev: v1.7.4
     hooks:
       - id: docformatter
-        args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
+        args:
+          [
+            --in-place,
+            --wrap-summaries=99,
+            --wrap-descriptions=99,
+            --style=sphinx,
+            --black,
+          ]
 
   # python docstring coverage checking
   - repo: https://github.com/econchick/interrogate
@@ -54,13 +61,13 @@ repos:
 
   # python check (PEP8), programming errors and code complexity
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+    rev: 7.0.0
     hooks:
       - id: flake8
         args:
           [
             "--extend-ignore",
-            "E402",
+            "E402,RST2,RST30",
             "--per-file-ignores",
             "__init__.py:F401",
             "--exclude",
@@ -68,17 +75,18 @@ repos:
             "--max-line-length",
             "99",
           ]
+        additional_dependencies: [flake8-rst-docstrings==0.3.0]
 
   # python security linter
   - repo: https://github.com/PyCQA/bandit
     rev: "1.7.5"
     hooks:
       - id: bandit
-        args: ["-s", "B101,B202"]
+        args: ["-s", "B101,B202,B301"]
 
   # python type checker
-  - repo: https://github.com/mattseymour/pre-commit-pytype
-    rev: 2022.4.26
+  - repo: https://github.com/altndrr/pre-commit-pytype
+    rev: 2023.10.31
     hooks:
       - id: pytype
         args: ["--disable", "import-error,not-supported-yet", "-n", "auto"]

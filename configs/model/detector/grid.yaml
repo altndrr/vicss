@@ -1,0 +1,2 @@
+_target_: src.models.components.detection.GridDetector
+grid_size: 3

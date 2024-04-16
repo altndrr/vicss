@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
 
 import torchvision.transforms as T
 from lightning import LightningDataModule
@@ -25,6 +24,7 @@ class BaseDataModule(ABC, LightningDataModule):
     Attributes:
         name (str): Name of the dataset.
         classes (list[str]): List of class names.
+        task (str): Task of the dataset.
         data_train (Dataset): Training dataset.
         data_val (Dataset): Validation dataset.
         data_test (Dataset): Test dataset.
@@ -32,6 +32,7 @@ class BaseDataModule(ABC, LightningDataModule):
     """
 
     name: str
+    task: str
 
     classes: list[str]
 
@@ -45,12 +46,13 @@ class BaseDataModule(ABC, LightningDataModule):
         super().__init__()
 
         assert self.name is not None, "name must be set"
+        assert self.task is not None, "task must be set"
         assert sum(train_val_split) == 1.0, "train_val_split must sum to 1.0"
         assert train_val_split[1] > 0, "train_val_split must have a non-zero val split"
 
-        self.data_train: Optional[Dataset] = None
-        self.data_val: Optional[Dataset] = None
-        self.data_test: Optional[Dataset] = None
+        self.data_train: Dataset | None = None
+        self.data_val: Dataset | None = None
+        self.data_test: Dataset | None = None
 
         # save hyperparameters
         kwargs["batch_size"] = kwargs.get("batch_size", 64)
@@ -91,11 +93,11 @@ class BaseDataModule(ABC, LightningDataModule):
         return self._preprocess
 
     @preprocess.setter
-    def preprocess(self, transform: Union[list, T.Compose]) -> None:
+    def preprocess(self, transform: list | T.Compose) -> None:
         """Set preprocess transform.
 
         Args:
-            transform (Union[list, T.Compose]): Transform to be applied.
+            transform (list | T.Compose): Transform to be applied.
         """
         if not isinstance(transform, T.Compose):
             transform = T.Compose(transform)
@@ -123,7 +125,7 @@ class BaseDataModule(ABC, LightningDataModule):
         raise NotImplementedError
 
     @abstractmethod
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         """Load data.
 
         Set variables: `self.data_train`, `self.data_val`, `self.data_test`.

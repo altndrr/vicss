@@ -1,6 +1,7 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Union, cast
+from collections.abc import Callable
+from typing import cast
 
 import inflect
 import nltk
@@ -25,6 +26,7 @@ __all__ = [
     "FrequencyMinWordCount",
     "FrequencyTopK",
     "ReplaceSeparators",
+    "ToMultiCropTensors",
     "ToRGBTensor",
     "ToLowercase",
     "ToSingular",
@@ -370,10 +372,10 @@ class TextCompose:
     def __init__(self, transforms: list[BaseTextTransform]) -> None:
         self.transforms = transforms
 
-    def __call__(self, text: Union[str, list[str]]) -> list[str]:
+    def __call__(self, text: str | list[str]) -> list[str]:
         """
         Args:
-            text (Union[str, list[str]]): Text to transform.
+            text (str | list[str]): Text to transform.
         """
         if isinstance(text, list):
             text = " ".join(text)
@@ -399,7 +401,7 @@ class ToRGBTensor(T.ToTensor):
     tensor.
     """
 
-    def __call__(self, pic: Union[PIL.Image.Image, np.ndarray, torch.Tensor]) -> torch.Tensor:
+    def __call__(self, pic: PIL.Image.Image | np.ndarray | torch.Tensor) -> torch.Tensor:
         """
         Args:
             pic (PIL Image | numpy.ndarray | torch.Tensor): Image to be converted to tensor.
@@ -414,6 +416,147 @@ class ToRGBTensor(T.ToTensor):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
+
+
+class ToMultiCropTensors:
+    """Convert an image tensor to multiple cropped image tensors.
+
+    It supports grid cropping with different grid sizes and random cropping. Multiple strategies
+    can be combined together.
+
+    Args:
+        grid_sizes (int | list[int]): Grid sizes to use for grid cropping. Defaults to [2].
+        num_random_crops (int): Number of random crops to extract. Defaults to 0.
+        min_random_scale (float): Min size of the random crop as a fraction of the image size.
+            Defaults to 0.08.
+        max_random_scale (float): Max size of the random crop as a fraction of the image size.
+            Defaults to 0.3.
+        stride_grid (bool): Whether to also extract crops with a stride of 0.5. Defaults to False.
+        output_size (int | tuple[int, int]): Size of returned patches. Defaults to (224, 224).
+    """
+
+    def __init__(
+        self,
+        grid_sizes: int | list[int] = [2],
+        num_random_crops: int = 0,
+        min_random_scale: float = 0.08,
+        max_random_scale: float = 0.3,
+        stride_grid: bool = False,
+        output_size: int | tuple[int, int] = (224, 224),
+    ) -> None:
+        self.grid_sizes = [grid_sizes] if isinstance(grid_sizes, int) else grid_sizes
+        self.num_random_crops = num_random_crops
+        self.min_random_scale = min_random_scale
+        self.max_random_scale = max_random_scale
+        self.stride_grid = stride_grid
+        if isinstance(output_size, int):
+            output_size = (output_size, output_size)
+        self.output_size = output_size
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            img (torch.Tensor): Image tensor to convert to patch tensor.
+        """
+        all_crops = []
+        all_bboxes = []
+
+        for grid_size in self.grid_sizes:
+            possible_strides = [(0.0, 0.0), (0.0, 0.5), (0.5, 0.0), (0.5, 0.5)]
+            if not self.stride_grid or grid_size == 1:
+                possible_strides = [(0.0, 0.0)]
+
+            for stride_top, stride_left in possible_strides:
+                grid_height, grid_width = grid_size, grid_size
+                cell_height, cell_width = img.shape[1] // grid_height, img.shape[2] // grid_width
+                img_size = (cell_height * grid_size, cell_width * grid_size)
+                resized_img = F.resize(img, size=img_size, antialias=True)
+
+                # store original dimensions tof bbox computation
+                og_cell_height, og_cell_width = cell_height, cell_width
+                og_img_size = img_size
+
+                # crop the image by half the cell size to extract strided crops
+                pad_height, pad_width = int(stride_top > 0.0), int(stride_left > 0.0)
+                if pad_height or pad_width:
+                    crop_top = cell_height // 2 if pad_height else 0
+                    crop_left = cell_width // 2 if pad_width else 0
+                    crop_height = resized_img.shape[1] - pad_height * cell_height
+                    crop_width = resized_img.shape[2] - pad_width * cell_width
+                    resized_img = F.crop(resized_img, crop_top, crop_left, crop_height, crop_width)
+
+                    # overwrite cell sizes
+                    grid_height = grid_size - int(stride_top > 0)
+                    grid_width = grid_size - int(stride_left > 0)
+                    cell_height = resized_img.shape[1] // grid_height
+                    cell_width = resized_img.shape[2] // grid_width
+
+                    # resize image to a multiple of the grid size
+                    img_size = (cell_height * grid_height, cell_width * grid_width)
+                    resized_img = F.resize(resized_img, size=img_size, antialias=True)
+
+                # crop image and resize to output size
+                crops = resized_img.unfold(1, cell_height, cell_height)
+                crops = crops.unfold(2, cell_width, cell_width)
+                crops = crops.reshape(3, -1, cell_height, cell_width).transpose(0, 1)
+                crops = F.resize(crops, size=self.output_size, antialias=True)
+
+                # compute bounding boxes
+                offset_top = stride_top * og_cell_height
+                offset_left = stride_left * og_cell_width
+                bboxes = [
+                    [
+                        (offset_left + (j * og_cell_width)) / float(og_img_size[1]),
+                        (offset_top + (i * og_cell_height)) / float(og_img_size[0]),
+                        og_cell_width / float(og_img_size[1]),
+                        og_cell_height / float(og_img_size[0]),
+                    ]
+                    for i in range(grid_height)
+                    for j in range(grid_width)
+                ]
+                bboxes = torch.tensor(bboxes)
+
+                all_crops.append(crops)
+                all_bboxes.append(bboxes)
+
+        random_crops, random_bboxes = [], []
+        for _ in range(self.num_random_crops):
+            # sample random crop size
+            scale = np.random.uniform(self.min_random_scale, self.max_random_scale)
+            _, h, w = F.get_dimensions(img)
+            tw = int(img.shape[2] * scale)
+            th = int(img.shape[1] * scale)
+
+            if h < th or w < tw:
+                raise ValueError(f"Crop size {(th, tw)} is larger than input image size {(h, w)}")
+
+            if w == tw and h == th:
+                return 0, 0, h, w
+
+            i = torch.randint(0, h - th + 1, size=(1,)).item()
+            j = torch.randint(0, w - tw + 1, size=(1,)).item()
+
+            # crop image and resize to output size
+            crop = F.resized_crop(img, i, j, th, tw, size=self.output_size, antialias=True)
+
+            # compute bounding boxes
+            bboxes = torch.tensor([j / w, i / h, tw / w, th / h])
+
+            random_crops.append(crop)
+            random_bboxes.append(bboxes)
+
+        if len(random_crops) > 0:
+            all_crops.append(torch.stack(random_crops))
+            all_bboxes.append(torch.stack(random_bboxes))
+
+        all_crops = torch.cat(all_crops, dim=0)
+        all_bboxes = torch.cat(all_bboxes, dim=0)
+
+        return {
+            "images_tensor": F.resize(img, size=self.output_size, antialias=True),
+            "images_crops_tensor": all_crops,
+            "images_crops_bbox": all_bboxes,
+        }
 
 
 class ToLowercase(BaseTextTransform):
@@ -462,7 +605,7 @@ class ToSingular(BaseTextTransform):
         return f"{self.__class__.__name__}()"
 
 
-def default_image_preprocess(size: Optional[int] = None) -> T.Compose:
+def default_image_preprocess(size: int | None = None) -> T.Compose:
     """Default preprocessing transforms for images.
 
     Args:
@@ -480,7 +623,7 @@ def default_image_preprocess(size: Optional[int] = None) -> T.Compose:
 def default_text_preprocess() -> Callable:
     """Default preprocessing transforms for text."""
 
-    def text_preprocess(texts: list[str], prompts: Optional[list[str]] = None) -> list[list[str]]:
+    def text_preprocess(texts: list[str], prompts: list[str] | None = None) -> list[list[str]]:
         prompts = prompts or ["{}"]
         texts = [text.replace("_", " ") for text in texts]
         texts_views = [[p.format(text) for text in texts] for p in prompts]

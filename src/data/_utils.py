@@ -21,6 +21,11 @@ def default_collate_fn(batch: list[dict]) -> dict:
         data_type = type(batch[0][key])
         if data_type == torch.Tensor:
             collated[key] = torch.stack([item[key] for item in batch])
+        elif data_type == dict:
+            inner_collate = default_collate_fn([item[key] for item in batch])
+            for inner_key in inner_collate.keys():
+                assert inner_key not in collated, f"Duplicate key: {inner_key}"
+                collated[inner_key] = inner_collate[inner_key]
         else:
             collated[key] = [item[key] for item in batch]
 
@@ -38,7 +43,8 @@ def download_data(url: str, target: Path, from_gdrive: bool = False) -> None:
     if not target.parent.exists():
         target.parent.mkdir(parents=True, exist_ok=False)
 
-    if from_gdrive:
+    if from_gdrive and not url.endswith("&confirm=t"):  # append the confirm parameter to the URL
+        url += "&confirm=t"
         gdown.download(url, str(target), quiet=False)
     else:
         header = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64)"}

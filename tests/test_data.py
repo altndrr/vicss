@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from src.data import (
+    ADE20K150,
     DTD,
     SUN397,
     UCF101,
@@ -14,8 +15,37 @@ from src.data import (
     Food101,
     ImageNet,
     OxfordPets,
+    PASCALContext59,
+    PascalVOC20,
     StanfordCars,
 )
+
+
+@pytest.mark.parametrize("batch_size", [32, 128])
+def test_ade20k_150(batch_size):
+    data_dir = "data/"
+
+    dm = ADE20K150(data_dir=data_dir, batch_size=batch_size)
+    dm.prepare_data()
+
+    assert not dm.data_train and not dm.data_val and not dm.data_test
+    assert Path(data_dir, "ADE20K150").exists()
+
+    dm.setup()
+    assert dm.data_train and dm.data_val and dm.data_test
+    assert dm.train_dataloader() and dm.val_dataloader() and dm.test_dataloader()
+
+    num_datapoints = len(dm.data_train) + len(dm.data_val)
+    assert num_datapoints == 20210
+    assert len(dm.data_test) == 2000
+
+    batch = next(iter(dm.train_dataloader()))
+    x, y = batch["images_tensor"], batch["targets_one_hot"]
+    assert len(x) == batch_size
+    assert y.dim() == 2
+    assert y.shape[0] == batch_size and y.shape[1] == 151
+    assert x.dtype == torch.float32
+    assert y.dtype == torch.int64
 
 
 @pytest.mark.parametrize("batch_size", [32, 128])
@@ -223,6 +253,60 @@ def test_oxford_pets(batch_size):
     assert len(x) == batch_size
     assert y.dim() == 2
     assert y.shape[0] == batch_size and y.shape[1] == 37
+    assert x.dtype == torch.float32
+    assert y.dtype == torch.int64
+
+
+@pytest.mark.parametrize("batch_size", [32, 128])
+def test_pascal_context_59(batch_size):
+    data_dir = "data/"
+
+    dm = PASCALContext59(data_dir=data_dir, batch_size=batch_size)
+    dm.prepare_data()
+
+    assert not dm.data_train and not dm.data_val and not dm.data_test
+    assert Path(data_dir, "PASCALContext59").exists()
+
+    dm.setup()
+    assert dm.data_train and dm.data_val and dm.data_test
+    assert dm.train_dataloader() and dm.val_dataloader() and dm.test_dataloader()
+
+    num_datapoints = len(dm.data_train) + len(dm.data_val)
+    assert num_datapoints == 4996
+    assert len(dm.data_test) == 5104
+
+    batch = next(iter(dm.train_dataloader()))
+    x, y = batch["images_tensor"], batch["targets_one_hot"]
+    assert len(x) == batch_size
+    assert y.dim() == 2
+    assert y.shape[0] == batch_size and y.shape[1] == 60
+    assert x.dtype == torch.float32
+    assert y.dtype == torch.int64
+
+
+@pytest.mark.parametrize("batch_size", [32, 128])
+def test_pascal_voc_20(batch_size):
+    data_dir = "data/"
+
+    dm = PascalVOC20(data_dir=data_dir, batch_size=batch_size)
+    dm.prepare_data()
+
+    assert not dm.data_train and not dm.data_val and not dm.data_test
+    assert Path(data_dir, "PascalVOC20").exists()
+
+    dm.setup()
+    assert dm.data_train and dm.data_val and dm.data_test
+    assert dm.train_dataloader() and dm.val_dataloader() and dm.test_dataloader()
+
+    num_datapoints = len(dm.data_train) + len(dm.data_val)
+    assert num_datapoints == 1464
+    assert len(dm.data_test) == 1449
+
+    batch = next(iter(dm.train_dataloader()))
+    x, y = batch["images_tensor"], batch["targets_one_hot"]
+    assert len(x) == batch_size
+    assert y.dim() == 2
+    assert y.shape[0] == batch_size and y.shape[1] == 21
     assert x.dtype == torch.float32
     assert y.dtype == torch.int64
 

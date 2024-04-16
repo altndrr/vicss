@@ -1,0 +1,6 @@
+_target_: src.models.components.detection.FastSAMDetector
+model_dir: ${paths.model_dir}
+image_size: 1024
+iou: 0.9
+confidence: 0.4
+max_det: 16

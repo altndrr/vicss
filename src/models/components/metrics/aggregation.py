@@ -1,5 +1,3 @@
-from typing import Union
-
 import torch
 from torchmetrics.aggregation import BaseAggregator
 
@@ -14,11 +12,11 @@ class UniqueValues(BaseAggregator):
 
     full_state_update = True
 
-    def __init__(self, nan_strategy: Union[str, float] = "warn", **kwargs) -> None:
+    def __init__(self, nan_strategy: str | float = "warn", **kwargs) -> None:
         super().__init__(None, -torch.tensor(0), nan_strategy, **kwargs)
         self.unique_values = set()
 
-    def update(self, value: Union[list[str], list[list[str]]]) -> None:
+    def update(self, value: list[str] | list[list[str]]) -> None:
         """Update state with data.
 
         Args:

@@ -1,6 +1,6 @@
 import hydra
 from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig
+from omegaconf import DictConfig, open_dict
 
 
 def test_train_config(cfg_train: DictConfig):
@@ -11,7 +11,9 @@ def test_train_config(cfg_train: DictConfig):
 
     HydraConfig().set_config(cfg_train)
 
-    hydra.utils.instantiate(cfg_train.data)
+    data = hydra.utils.instantiate(cfg_train.data)
+    with open_dict(cfg_train):
+        cfg_train.model.task = data.task
     hydra.utils.instantiate(cfg_train.model)
     hydra.utils.instantiate(cfg_train.trainer)
 
@@ -24,6 +26,8 @@ def test_eval_config(cfg_eval: DictConfig):
 
     HydraConfig().set_config(cfg_eval)
 
-    hydra.utils.instantiate(cfg_eval.data)
+    data = hydra.utils.instantiate(cfg_eval.data)
+    with open_dict(cfg_eval):
+        cfg_eval.model.task = data.task
     hydra.utils.instantiate(cfg_eval.model)
     hydra.utils.instantiate(cfg_eval.trainer)

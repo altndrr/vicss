@@ -16,6 +16,7 @@ data:
 
 model:
   alpha: 0.7
+  vocab_prompts_from_dataset: False
 
 logger:
   wandb:

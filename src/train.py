@@ -1,16 +1,14 @@
-from typing import Optional
-
 import hydra
-import pyrootutils
+import rootutils
 from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 
-root = pyrootutils.setup_root(search_from=__file__, indicator="pyproject.toml", pythonpath=True)
+root = rootutils.setup_root(search_from=__file__, indicator="pyproject.toml", pythonpath=True)
 
 from src import utils
 
-log = utils.get_logger(__name__)
+log = utils.get_logger(__name__, rank_zero_only=True)
 
 
 @utils.task_wrapper
@@ -35,7 +33,7 @@ def train(cfg: DictConfig) -> tuple[dict, dict]:
     data: LightningDataModule = hydra.utils.instantiate(cfg.data)
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model)
+    model: LightningModule = hydra.utils.instantiate(cfg.model, task=data.task)
 
     log.info("Instantiating callbacks...")
     callbacks: list[Callback] = utils.instantiate_callbacks(cfg.get("callbacks"))
@@ -83,7 +81,7 @@ def train(cfg: DictConfig) -> tuple[dict, dict]:
 
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train.yaml")
-def main(cfg: DictConfig) -> Optional[float]:
+def main(cfg: DictConfig) -> float | None:
     """Main entrypoint for training.
 
     Args:

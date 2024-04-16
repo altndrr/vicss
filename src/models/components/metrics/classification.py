@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Union
 
 import numpy as np
 import torch
@@ -34,7 +33,7 @@ class SemanticClusterAccuracy(Metric):
         self.targets_per_sample = []
         self.values_per_sample = []
 
-    def update(self, values: list[dict], targets: Union[list[str], list[list[str]]]) -> None:
+    def update(self, values: list[dict], targets: list[str] | list[list[str]]) -> None:
         """Update state with data.
 
         Args:

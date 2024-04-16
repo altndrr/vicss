@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 from src.data._base import BaseDataModule
 from src.data._utils import download_data, extract_data
-from src.data.components.datasets import ImageDataset
+from src.data.components.datasets import ClassificationDataset
 
 
 class Food101(BaseDataModule):
@@ -26,9 +26,11 @@ class Food101(BaseDataModule):
     """
 
     name: str = "Food101"
+    task: str = "classification"
 
     classes: list[str]
 
+    alt_name: str = "food101"
     data_url: str = "http://data.vision.ee.ethz.ch/cvl/food-101.tar.gz"
 
     def __init__(
@@ -56,7 +58,7 @@ class Food101(BaseDataModule):
         output_path = Path(self.hparams.data_dir, "food-101")
         output_path.rename(dataset_path)
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         """Load data.
 
         Set variables: `self.data_train` , `self.data_val` and `self.data_test`.
@@ -65,8 +67,8 @@ class Food101(BaseDataModule):
             return
 
         dataset_path = Path(self.hparams.data_dir, self.name, "images")
-        metadata_fp = Path(self.hparams.artifact_dir, "data", "food101", "metadata.csv")
-        split_fp = Path(self.hparams.artifact_dir, "data", "food101", "split_coop.csv")
+        metadata_fp = Path(self.hparams.artifact_dir, "data", self.alt_name, "metadata.csv")
+        split_fp = Path(self.hparams.artifact_dir, "data", self.alt_name, "split_coop.csv")
 
         metadata_df = pd.read_csv(metadata_fp)
         class_names = metadata_df["class_name"].tolist()
@@ -79,7 +81,7 @@ class Food101(BaseDataModule):
             image_paths = image_paths.apply(lambda x: str(dataset_path / x)).tolist()
             folder_names = [Path(f).parent.name for f in image_paths]
             labels = [classes_to_idx[c] for c in folder_names]
-            data[split] = ImageDataset(
+            data[split] = ClassificationDataset(
                 str(dataset_path),
                 images=image_paths,
                 labels=labels,
@@ -94,7 +96,7 @@ class Food101(BaseDataModule):
         self.data_val = data["val"]
         self.data_test = data["test"]
 
-    def teardown(self, stage: Optional[str] = None) -> None:
+    def teardown(self, stage: str | None = None) -> None:
         """Clean up after fit or test."""
         pass
 

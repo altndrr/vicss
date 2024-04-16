@@ -1,10 +1,10 @@
 from pathlib import Path
 from shutil import rmtree
-from typing import Any, Optional
+from typing import Any
 
 from src.data._base import BaseDataModule
 from src.data._utils import download_data, extract_data
-from src.data.components.datasets import ImageDataset
+from src.data.components.datasets import ClassificationDataset
 
 
 class FGVCAircraft(BaseDataModule):
@@ -24,9 +24,11 @@ class FGVCAircraft(BaseDataModule):
     """
 
     name: str = "FGVCAircraft"
+    task: str = "classification"
 
     classes: list[str]
 
+    alt_name: str = "fgvc_aircraft"
     data_url: str = (
         "https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/archives/fgvc-aircraft-2013b.tar.gz"
     )
@@ -57,7 +59,7 @@ class FGVCAircraft(BaseDataModule):
         image_path.rename(dataset_path)
         rmtree(Path(self.hparams.data_dir, "fgvc-aircraft-2013b"))
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         """Load data.
 
         Set variables: `self.data_train` , `self.data_val` and `self.data_test`.
@@ -81,7 +83,7 @@ class FGVCAircraft(BaseDataModule):
 
             image_paths = [str(dataset_path / "images" / f"{x}.jpg") for x in filenames]
             labels = [classes_to_idx[c] for c in labels]
-            data[split] = ImageDataset(
+            data[split] = ClassificationDataset(
                 str(dataset_path),
                 images=image_paths,
                 labels=labels,
@@ -96,7 +98,7 @@ class FGVCAircraft(BaseDataModule):
         self.data_val = data["val"]
         self.data_test = data["test"]
 
-    def teardown(self, stage: Optional[str] = None) -> None:
+    def teardown(self, stage: str | None = None) -> None:
         """Clean up after fit or test."""
         pass
 

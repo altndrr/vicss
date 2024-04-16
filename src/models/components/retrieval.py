@@ -12,13 +12,13 @@ from src.data._utils import download_data
 __all__ = ["RetrievalDatabase", "download_retrieval_databases"]
 
 RETRIEVAL_DATABASES_URLS = {
-    "cc12m": "https://drive.google.com/uc?id=1HyM4mnKSxF0sqzAe-KZL8y-cQWRPiuXn&confirm=t",
-    "english_words": "https://drive.google.com/uc?id=197poGaUJVP1Mh1qPL5yaNrYJuvd3JRb-&confirm=t",
-    "pmd_top5": "https://drive.google.com/uc?id=15SDIf7KM8VIG_AxdnKkL1ODr_igOuZSD&confirm=t",
-    "wordnet": "https://drive.google.com/uc?id=1q_StrVCnj8fPgvghXw-fSxp4qaSe0xvk&confirm=t",
+    "cc12m_all": "https://drive.google.com/uc?id=1VDdCyWzTymOhQW1yf5mld1_BO3HRDUYn",
+    "english_words_all": "https://drive.google.com/uc?id=1-i1r9vllDWj89lkJEPiez0BmdtoMZq-J",
+    "pmd_top5_all": "https://drive.google.com/uc?id=1sbYkhStdpYZ-WL5mUpra3tWoOW6GunFY",
+    "wordnet_all": "https://drive.google.com/uc?id=1WkqTbmCI5xiYx20FGYr0H5508F1sZh7u",
 }
 
-log = utils.get_logger(__name__)
+log = utils.get_logger(__name__, rank_zero_only=True)
 
 
 def download_retrieval_databases(artifact_dir: str = "artifacts/"):

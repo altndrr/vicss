@@ -1,5 +1,5 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import rich
 import rich.syntax
@@ -11,7 +11,7 @@ from rich.prompt import Prompt
 
 from src.utils import logging_utils
 
-log = logging_utils.get_logger(__name__)
+log = logging_utils.get_logger(__name__, rank_zero_only=True)
 
 
 @rank_zero_only
@@ -45,8 +45,12 @@ def print_config_tree(
 
     # add fields from `print_order` to queue
     for field in print_order:
-        queue.append(field) if field in cfg else log.warning(
-            f"Field '{field}' not found in config. Skipping '{field}' config printing..."
+        (
+            queue.append(field)
+            if field in cfg
+            else log.warning(
+                f"Field '{field}' not found in config. Skipping '{field}' config printing..."
+            )
         )
 
     # add all the other fields to queue (not specified in `print_order`)

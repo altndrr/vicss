@@ -1,14 +1,14 @@
 import hydra
-import pyrootutils
+import rootutils
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 
-root = pyrootutils.setup_root(search_from=__file__, indicator="pyproject.toml", pythonpath=True)
+root = rootutils.setup_root(search_from=__file__, indicator="pyproject.toml", pythonpath=True)
 
 from src import utils
 
-log = utils.get_logger(__name__)
+log = utils.get_logger(__name__, rank_zero_only=True)
 
 
 @utils.task_wrapper
@@ -28,7 +28,7 @@ def evaluate(cfg: DictConfig) -> tuple[dict, dict]:
     data: LightningDataModule = hydra.utils.instantiate(cfg.data)
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model)
+    model: LightningModule = hydra.utils.instantiate(cfg.model, task=data.task)
 
     if cfg.ckpt_path is None:
         log.warning("No checkpoint path provided! Using the initial weights...")

@@ -1,13 +1,13 @@
 import zipfile
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 from rich.progress import track
 
 from src.data._base import BaseDataModule
-from src.data.components.datasets import ImageDataset
+from src.data.components.datasets import ClassificationDataset
 
 with suppress(OSError):
     import kaggle
@@ -30,9 +30,11 @@ class ImageNet(BaseDataModule):
     """
 
     name: str = "ImageNet"
+    task: str = "classification"
 
     classes: list[str]
 
+    alt_name: str = "imagenet"
     data_url: str = ""
 
     def __init__(
@@ -100,7 +102,7 @@ class ImageNet(BaseDataModule):
         Path(self.hparams.data_dir, "ILSVRC").rmdir()
         Path(self.hparams.data_dir, "ImageNet", "LOC_val_solution.csv").unlink()
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         """Load data.
 
         Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -109,15 +111,15 @@ class ImageNet(BaseDataModule):
             return
 
         dataset_path = Path(self.hparams.data_dir, self.name)
-        metadata_fp = str(Path(self.hparams.artifact_dir, "data", "imagenet", "metadata.csv"))
+        metadata_fp = str(Path(self.hparams.artifact_dir, "data", self.alt_name, "metadata.csv"))
 
         metadata_df = pd.read_csv(metadata_fp)
         class_names = metadata_df["class_name"].tolist()
 
-        train_set = ImageDataset(
+        train_set = ClassificationDataset(
             str(dataset_path / "train"), class_names=class_names, transform=self.preprocess
         )
-        test_set = ImageDataset(
+        test_set = ClassificationDataset(
             str(dataset_path / "val"), class_names=class_names, transform=self.preprocess
         )
 
@@ -127,7 +129,7 @@ class ImageNet(BaseDataModule):
         self.data_train = train_set
         self.data_val = self.data_test = test_set
 
-    def teardown(self, stage: Optional[str] = None) -> None:
+    def teardown(self, stage: str | None = None) -> None:
         """Clean up after fit or test."""
         pass
 

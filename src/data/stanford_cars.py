@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 from src.data._base import BaseDataModule
 from src.data._utils import download_data, extract_data
-from src.data.components.datasets import ImageDataset
+from src.data.components.datasets import ClassificationDataset
 
 
 class StanfordCars(BaseDataModule):
@@ -25,9 +25,11 @@ class StanfordCars(BaseDataModule):
     """
 
     name: str = "StanfordCars"
+    task: str = "classification"
 
     classes: list[str]
 
+    alt_name: str = "stanford_cars"
     data_url: dict[str, str] = {
         "train": "http://ai.stanford.edu/~jkrause/car196/cars_train.tgz",
         "test": "http://ai.stanford.edu/~jkrause/car196/cars_test.tgz",
@@ -58,7 +60,7 @@ class StanfordCars(BaseDataModule):
             dataset_path.mkdir(parents=True, exist_ok=True)
             output_path.rename(dataset_path / split)
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         """Load data.
 
         Set variables: `self.data_train` , `self.data_val` and `self.data_test`.
@@ -67,9 +69,9 @@ class StanfordCars(BaseDataModule):
             return
 
         dataset_path = Path(self.hparams.data_dir, self.name)
-        labels_fp = Path(self.hparams.artifact_dir, "data", "stanford_cars", "labels.csv")
-        metadata_fp = Path(self.hparams.artifact_dir, "data", "stanford_cars", "metadata.csv")
-        split_fp = Path(self.hparams.artifact_dir, "data", "stanford_cars", "split_coop.csv")
+        labels_fp = Path(self.hparams.artifact_dir, "data", self.alt_name, "labels.csv")
+        metadata_fp = Path(self.hparams.artifact_dir, "data", self.alt_name, "metadata.csv")
+        split_fp = Path(self.hparams.artifact_dir, "data", self.alt_name, "split_coop.csv")
 
         labels_df = pd.read_csv(labels_fp)
 
@@ -84,7 +86,7 @@ class StanfordCars(BaseDataModule):
             image_paths = merge_df["filename"]
             image_paths = image_paths.apply(lambda x: str(dataset_path / x)).tolist()
             labels = merge_df["class_idx"].tolist()
-            data[split] = ImageDataset(
+            data[split] = ClassificationDataset(
                 str(dataset_path),
                 images=image_paths,
                 labels=labels,
@@ -99,7 +101,7 @@ class StanfordCars(BaseDataModule):
         self.data_val = data["val"]
         self.data_test = data["test"]
 
-    def teardown(self, stage: Optional[str] = None) -> None:
+    def teardown(self, stage: str | None = None) -> None:
         """Clean up after fit or test."""
         pass
 

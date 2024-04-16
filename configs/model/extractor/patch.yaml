@@ -1,0 +1,5 @@
+_target_: src.models.components.extraction.PatchExtractor
+enlarge_bbox: 0.0
+extraction_method: crop
+min_segmentation_area: 1000
+retain_full_image: false

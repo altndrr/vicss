@@ -1,12 +1,11 @@
 from importlib.util import find_spec
-from typing import Optional
 
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import OmegaConf
 
 from src.utils import logging_utils
 
-log = logging_utils.get_logger(__name__)
+log = logging_utils.get_logger(__name__, rank_zero_only=True)
 
 
 @rank_zero_only
@@ -56,7 +55,7 @@ def log_hyperparameters(object_dict: dict) -> None:
         logger.log_hyperparams(hparams)
 
 
-def get_metric_value(metric_dict: dict, metric_name: Optional[str]) -> Optional[float]:
+def get_metric_value(metric_dict: dict, metric_name: str | None) -> float | None:
     """Safely retrieves value of the metric logged in LightningModule.
 
     Args:

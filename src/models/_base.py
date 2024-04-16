@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import PIL
 import torch
@@ -9,7 +10,7 @@ from lightning import LightningModule
 from src import utils
 from src.data.components.transforms import default_text_preprocess
 
-log = utils.get_logger(__name__)
+log = utils.get_logger(__name__, rank_zero_only=True)
 
 
 class BaseModel(ABC, LightningModule):
@@ -26,12 +27,14 @@ class BaseModel(ABC, LightningModule):
         warmup_epochs (int, optional): Number of warmup epochs. Defaults to 0.
     """
 
+    task: str
+
     def __init__(
         self,
         *args,
-        optimizer: Optional[torch.optim.Optimizer] = None,
-        scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-        warmup_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+        optimizer: torch.optim.Optimizer | None = None,
+        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        warmup_scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
         warmup_epochs: int = 0,
         **kwargs,
     ) -> None:
@@ -40,6 +43,8 @@ class BaseModel(ABC, LightningModule):
         self._num_workers = 16
         self._image_preprocess = None
         self.metrics = torch.nn.ModuleDict()
+
+        assert self.task, "task must be set"
 
         if optimizer is None:
             log.warning("No optimizer defined! Training will not be performed...")
@@ -74,7 +79,7 @@ class BaseModel(ABC, LightningModule):
         def images_preprocess(images: list[PIL.Image.Image]) -> list[torch.Tensor]:
             return [image_preprocess(image) for image in images]
 
-        return utils.map_reduce(images_preprocess, num_workers=self._num_workers, reduce="sum")
+        return utils.map_reduce(images_preprocess, num_workers=self._num_workers, reduce="batch")
 
     @image_preprocess.setter
     def image_preprocess(self, transform: T.Compose) -> None:
@@ -106,6 +111,8 @@ class BaseModel(ABC, LightningModule):
             stage (str): Stage of the model.
         """
         super().setup(stage)
+
+        assert self.trainer.datamodule.task == self.task, "datamodule not compatible with model"
 
         self._batch_size = self.trainer.datamodule.hparams.batch_size
         self._num_workers = self.trainer.datamodule.hparams.num_workers
@@ -173,7 +180,7 @@ class BaseModel(ABC, LightningModule):
         """
         raise NotImplementedError
 
-    def configure_optimizers(self) -> Optional[dict]:
+    def configure_optimizers(self) -> dict | None:
         """Configure optimizers and schedulers."""
         if self.hparams.get("optimizer") is None:
             return None
@@ -222,6 +229,8 @@ class VisionLanguageModel(BaseModel):
         classifier (torch.nn.Module): Neural network to classify the encoded inputs.
     """
 
+    task: str
+
     def __init__(
         self,
         *args,
@@ -246,7 +255,7 @@ class VisionLanguageModel(BaseModel):
         The getter wraps the transform in a map_reduce function and applies it to a list of texts.
         If interested in the transform itself, use `self._text_preprocess`.
         """
-        return utils.map_reduce(self._text_preprocess, num_workers=self._num_workers, reduce="sum")
+        return self._text_preprocess
 
     @text_preprocess.setter
     def text_preprocess(self, preprocess: Callable) -> None:
